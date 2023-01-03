@@ -1,3 +1,6 @@
 [submodule "IvyQt"]
 	path = IvyQt
 	url = https://gitlab.com/ivybus/IvyQt
+[submodule "labstreaminglayer"]
+	path = labstreaminglayer
+	url = https://github.com/sccn/labstreaminglayer
