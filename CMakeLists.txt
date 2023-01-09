@@ -1,9 +1,14 @@
 cmake_minimum_required(VERSION 3.5)
 
 
+
+#set(CMAKE_C_COMPILER   i686-w64-mingw32msvc-gcc)
+set(CMAKE_CXX_COMPILER "C:/msys64/mingw64/bin/c++.exe")
+
 set(PROJECT_VERSION_MAJOR 1)
 set(PROJECT_VERSION_MINOR 20)
 set(PROJECT_VERSION_PATCH 5)
+
 
 project(LiveAmp
 	LANGUAGES CXX
@@ -18,18 +23,14 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
+set(Qt5_DIR "C:\\Qt\\5.15.2\\mingw81_64\\lib\\cmake\\Qt5")
 
-set(lsl_DIR ${CMAKE_CURRENT_LIST_DIR}/LSL/lib/cmake/LSL)
+set(lsl_DIR ${CMAKE_CURRENT_LIST_DIR}/build64/liblsl)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(Qt5 REQUIRED COMPONENTS Widgets Core Network)
 find_package(Threads REQUIRED)
-find_package(lsl REQUIRED
-	HINTS ${LSL_INSTALL_ROOT}
-	"${CMAKE_CURRENT_LIST_DIR}/../../LSL/liblsl/build/"
-	"${CMAKE_CURRENT_LIST_DIR}/../../LSL/liblsl/build/install"
-	"${CMAKE_CURRENT_LIST_DIR}/../../LSL/liblsl/out/build/x64-Release"
-	"${CMAKE_CURRENT_LIST_DIR}/../../LSL/liblsl/out/install/x64-Release"
-	PATH_SUFFIXES share/LSL)
+find_package(lsl REQUIRED)
+find_package(IvyQt REQUIRED)
 	
 set_target_properties(${target} PROPERTIES AUTORCC_OPTIONS "--compress;9")
 
@@ -55,6 +56,9 @@ else()
 	set(LiveAmpLib2Dll ${CMAKE_CURRENT_LIST_DIR}/LiveAmpLib2/Win32/Release/LiveAmpLib2.dll)
 endif()
 
+
+
+
 add_executable(${PROJECT_NAME} WIN32
 	LiveAmp.cpp
 	LiveAmp.h
@@ -65,12 +69,17 @@ add_executable(${PROJECT_NAME} WIN32
 	mainwindow.rc
 	LiveAmpLib2/Amplifier_LIB.h 
 )
-
+#target_include_directories(
+#	${PROJECT_NAME} PRIVATE win32api/include
+#)
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
 	Qt5::Widgets
+	Qt5::Core
+	Qt5::Network
 	Threads::Threads
 	LSL::lsl
+	IvyQt
 	${LiveAmpLib2}
 )	
 
@@ -178,4 +187,4 @@ add_custom_command(
 		${CMAKE_SOURCE_DIR}/explanation_of_trigger_marker_types.pdf
 		$<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
-include(${CMAKE_CURRENT_LIST_DIR}/Packaging.cmake)
+# include(${CMAKE_CURRENT_LIST_DIR}/Packaging.cmake)

@@ -54,6 +54,8 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 	QObject::connect(ui->rbSync, SIGNAL(clicked(bool)), this, SLOT(RadioButtonBehavior(bool)));
 	QObject::connect(ui->rbMirror, SIGNAL(clicked(bool)), this, SLOT(RadioButtonBehavior(bool)));
 	QString cfgfilepath = FindConfigFile(config_file);
+	ivyqt = new IvyQt("IvyQt_EEG", "IvyQt_EEG Ready", this);
+    ivyqt->start("127.255.255.255", 2010);
 	LoadConfig(cfgfilepath);
 }
 
@@ -608,6 +610,18 @@ void MainWindow::ReadThread(t_AmpConfiguration ampConfiguration)
 		int64_t nSamplesRead;
 		int nSampleCount;
 
+		//initial ivy message to get EEG channel count & sfreq
+		QString init_message_ivy="EEG_Init ";
+		std::stringstream temp_str1,temp_str2;
+		temp_str2<<(std::to_string(m_pLiveAmp->getEnabledChannelCnt()));
+		char const *nchan = temp_str2.str().c_str();
+		init_message_ivy.append(nchan);
+		init_message_ivy.append(";");
+		temp_str1<<(std::to_string(ampConfiguration.m_dSamplingRate));
+		char const *sfreq = temp_str1.str().c_str();
+		init_message_ivy.append(sfreq);
+        ivyqt->send(init_message_ivy);
+
 		while (!m_bStop) {
 			nSamplesRead = m_pLiveAmp->pullAmpData(pBuffer, nBufferSize);
 			if (nSamplesRead <= 0){
@@ -661,6 +675,19 @@ void MainWindow::ReadThread(t_AmpConfiguration ampConfiguration)
 						}
 					}
 					ppfChunkBuffer.push_back(pfSampleBuffer);
+				}
+				//Ivy message sending
+				
+				for (i=0;i<ampConfiguration.m_nChunkSize;i++){
+					QString m_message_ivy="EEG_Data ";
+					std::stringstream temp_str;
+					for(k=0;k<m_pLiveAmp->getEnabledChannelCnt();k++){
+						temp_str<<(std::to_string(ppfChunkBuffer[i][k]));
+						char const *number_array = temp_str.str().c_str();
+						m_message_ivy.append(number_array);
+						m_message_ivy.append(";");
+					}
+					ivyqt->send(m_message_ivy); //format "EEG_Data channel1;channel2:channel3;...."
 				}
 				dataOutlet.push_chunk(ppfChunkBuffer, dNow);
 				ppfChunkBuffer.clear();

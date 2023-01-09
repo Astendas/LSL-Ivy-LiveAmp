@@ -14,11 +14,16 @@
 #define LSL_DEBUG_BINDINGS
 #include <lsl_cpp.h>
 
+#ifndef WINAPI
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <winnt.h>
 #include <WinIoCtl.h>
+#endif
 
 #include "LiveAmp.h"
+#include <IvyQt/ivyqt.h>
+
 
 
 struct t_AmpConfiguration
@@ -93,6 +98,7 @@ private:
 	void SaveConfig(const QString& filename);
 	void ResetGuiEnabling(bool b);
 	QString FindConfigFile(const char* filename);
+	IvyQt* ivyqt;
 };
 
 #endif // MAINWINDOW_H
