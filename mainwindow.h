@@ -19,6 +19,11 @@
 #include <windows.h>
 #include <winnt.h>
 #include <WinIoCtl.h>
+#include <winsock2.h>
+// Headers that need to be included after winsock2.h:
+#include <iphlpapi.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
 #endif
 
 #include "LiveAmp.h"

@@ -31,6 +31,8 @@ find_package(Qt5 REQUIRED COMPONENTS Widgets Core Network)
 find_package(Threads REQUIRED)
 find_package(lsl REQUIRED)
 find_package(IvyQt REQUIRED)
+
+find_library(IPHLPAPI_LIBRARY iphlpapi)
 	
 set_target_properties(${target} PROPERTIES AUTORCC_OPTIONS "--compress;9")
 
@@ -80,6 +82,8 @@ target_link_libraries(${PROJECT_NAME}
 	Threads::Threads
 	LSL::lsl
 	IvyQt
+	iphlpapi
+	Ws2_32
 	${LiveAmpLib2}
 )	
 

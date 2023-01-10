@@ -6,6 +6,7 @@
 #include <sstream>
 #include "LiveAmp.h"
 
+
 #if _WIN64
 #define BITDEPTH "64"
 #else
@@ -15,6 +16,9 @@
 #define LIBVERSIONSTREAM(version) version.Major << "." << version.Minor << "." << version.Build << "." << version.Revision
 #define LSLVERSIONSTREAM(version) (version/100) << "." << (version%100)
 #define APPVERSIONSTREAM(version) version.Major << "." << version.Minor << "." << version.Bugfix
+
+// typedef PIP_ADAPTER_ADDRESSES Addr;
+// typedef IP_ADAPTER_ADDRESSES *AddrList;
 
 const int pnSamplingRates[] = {250,500,1000};
 int getSamplingRateIndex(int nSamplingRate)
@@ -54,8 +58,47 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 	QObject::connect(ui->rbSync, SIGNAL(clicked(bool)), this, SLOT(RadioButtonBehavior(bool)));
 	QObject::connect(ui->rbMirror, SIGNAL(clicked(bool)), this, SLOT(RadioButtonBehavior(bool)));
 	QString cfgfilepath = FindConfigFile(config_file);
+
+	//Ivy network config
 	ivyqt = new IvyQt("IvyQt_EEG", "IvyQt_EEG Ready", this);
-    ivyqt->start("127.255.255.255", 2010);
+
+	DWORD outBufLen = 1 << 19;
+	PIP_ADAPTER_ADDRESSES ifaddrs = (IP_ADAPTER_ADDRESSES *) new char[outBufLen];
+	ULONG RetVal = GetAdaptersAddresses(AF_UNSPEC,
+		GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_DNS_SERVER, NULL, ifaddrs,
+		&outBufLen);
+	if (RetVal == NO_ERROR) {
+		for (PIP_ADAPTER_ADDRESSES addr = ifaddrs; addr != 0; addr = addr->Next) {
+			// Interface isn't up or doesn't support multicast? Skip it.
+			if (addr->OperStatus != IfOperStatusUp) continue;
+			if (addr->IfType == IF_TYPE_SOFTWARE_LOOPBACK) continue;
+			if (addr->NoMulticast) continue;
+
+			// Find the first IPv4 address
+			if (addr->Ipv4Enabled) {
+				for (IP_ADAPTER_UNICAST_ADDRESS_LH *uaddr = addr->FirstUnicastAddress; uaddr != 0; uaddr = uaddr->Next) {
+					if (uaddr->Address.lpSockaddr->sa_family != AF_INET) continue;
+					DWORD ip, subnet_mask;
+					char str_buffer[INET_ADDRSTRLEN] = {0};
+					SOCKADDR_IN* ipv4 = reinterpret_cast<SOCKADDR_IN*>(uaddr->Address.lpSockaddr);
+
+					inet_ntop(AF_INET, &(ipv4->sin_addr), str_buffer, INET_ADDRSTRLEN);
+					inet_pton(AF_INET, str_buffer, &ip);
+					ConvertLengthToIpv4Mask(uaddr->OnLinkPrefixLength,&subnet_mask);
+					// inet_pton(AF_INET, uaddr->Ipv4Mask.String, &subnet_mask);
+
+					DWORD broadcast_ip = (ip | ~subnet_mask);
+					char broadcast_ip_str[16];
+					inet_ntop(AF_INET, &broadcast_ip, broadcast_ip_str, 16);
+					ivyqt->start(broadcast_ip_str, 2010);
+					break;
+				}
+				
+			}
+		}
+	}
+    free(ifaddrs);
+    
 	LoadConfig(cfgfilepath);
 }
 
@@ -687,7 +730,7 @@ void MainWindow::ReadThread(t_AmpConfiguration ampConfiguration)
 						m_message_ivy.append(number_array);
 						m_message_ivy.append(";");
 					}
-					ivyqt->send(m_message_ivy); //format "EEG_Data channel1;channel2:channel3;...."
+					ivyqt->send(m_message_ivy); //format "EEG_Data channel1;channel2;channel3;...."
 				}
 				dataOutlet.push_chunk(ppfChunkBuffer, dNow);
 				ppfChunkBuffer.clear();
