@@ -105,5 +105,4 @@ private:
 	QString FindConfigFile(const char* filename);
 	IvyQt* ivyqt;
 };
-
 #endif // MAINWINDOW_H

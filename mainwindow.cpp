@@ -17,9 +17,6 @@
 #define LSLVERSIONSTREAM(version) (version/100) << "." << (version%100)
 #define APPVERSIONSTREAM(version) version.Major << "." << version.Minor << "." << version.Bugfix
 
-// typedef PIP_ADAPTER_ADDRESSES Addr;
-// typedef IP_ADAPTER_ADDRESSES *AddrList;
-
 const int pnSamplingRates[] = {250,500,1000};
 int getSamplingRateIndex(int nSamplingRate)
 {
@@ -59,9 +56,8 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 	QObject::connect(ui->rbMirror, SIGNAL(clicked(bool)), this, SLOT(RadioButtonBehavior(bool)));
 	QString cfgfilepath = FindConfigFile(config_file);
 
-	//Ivy network config
-	ivyqt = new IvyQt("IvyQt_EEG", "IvyQt_EEG Ready", this);
-
+	//ivy config
+	ivyqt = new IvyQt("IvyQt_EEG", "IvyQt_EEG Ready\x03", this);
 	DWORD outBufLen = 1 << 19;
 	PIP_ADAPTER_ADDRESSES ifaddrs = (IP_ADAPTER_ADDRESSES *) new char[outBufLen];
 	ULONG RetVal = GetAdaptersAddresses(AF_UNSPEC,
@@ -85,12 +81,14 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 					inet_ntop(AF_INET, &(ipv4->sin_addr), str_buffer, INET_ADDRSTRLEN);
 					inet_pton(AF_INET, str_buffer, &ip);
 					ConvertLengthToIpv4Mask(uaddr->OnLinkPrefixLength,&subnet_mask);
-					// inet_pton(AF_INET, uaddr->Ipv4Mask.String, &subnet_mask);
 
 					DWORD broadcast_ip = (ip | ~subnet_mask);
 					char broadcast_ip_str[16];
-					inet_ntop(AF_INET, &broadcast_ip, broadcast_ip_str, 16);
+					inet_ntop(AF_INET, &broadcast_ip, broadcast_ip_str, 16);		
+					//starting ivy on LAN
+					setWindowTitle("Launching Ivy Server");
 					ivyqt->start(broadcast_ip_str, 2010);
+					setWindowTitle(broadcast_ip_str);
 					break;
 				}
 				
@@ -98,7 +96,8 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 		}
 	}
     free(ifaddrs);
-    
+	ivyqt->bindMessage("EEG_Start",[=](Peer*, QStringList){ivyqt->send("Starting EEG...");});
+	ivyqt->send("salut");
 	LoadConfig(cfgfilepath);
 }
 
@@ -654,18 +653,19 @@ void MainWindow::ReadThread(t_AmpConfiguration ampConfiguration)
 		int nSampleCount;
 
 		//initial ivy message to get EEG channel count & sfreq
+		
+		ivyqt->bindMessage("EEG_Init_Request",[=](Peer*, QStringList){
 		QString init_message_ivy="EEG_Init ";
-		std::stringstream temp_str1,temp_str2;
-		temp_str2<<(std::to_string(m_pLiveAmp->getEnabledChannelCnt()));
-		char const *nchan = temp_str2.str().c_str();
-		init_message_ivy.append(nchan);
+		init_message_ivy.append(QString::number(nChannelLabelCount));
 		init_message_ivy.append(";");
-		temp_str1<<(std::to_string(ampConfiguration.m_dSamplingRate));
-		char const *sfreq = temp_str1.str().c_str();
-		init_message_ivy.append(sfreq);
-        ivyqt->send(init_message_ivy);
+		init_message_ivy.append(QString::number((int)ampConfiguration.m_dSamplingRate));
+        ivyqt->send(init_message_ivy.toUtf8());
+		setWindowTitle(init_message_ivy);});
+		
+
 
 		while (!m_bStop) {
+			std::cout<<ivyqt->getPeers().length();
 			nSamplesRead = m_pLiveAmp->pullAmpData(pBuffer, nBufferSize);
 			if (nSamplesRead <= 0){
 				// CPU saver, this is ok even at higher sampling rates
@@ -720,17 +720,13 @@ void MainWindow::ReadThread(t_AmpConfiguration ampConfiguration)
 					ppfChunkBuffer.push_back(pfSampleBuffer);
 				}
 				//Ivy message sending
-				
 				for (i=0;i<ampConfiguration.m_nChunkSize;i++){
 					QString m_message_ivy="EEG_Data ";
-					std::stringstream temp_str;
-					for(k=0;k<m_pLiveAmp->getEnabledChannelCnt();k++){
-						temp_str<<(std::to_string(ppfChunkBuffer[i][k]));
-						char const *number_array = temp_str.str().c_str();
-						m_message_ivy.append(number_array);
+					for(k=0;k<nChannelLabelCount;k++){
+						m_message_ivy.append(QString::number(((float)ppfChunkBuffer[i][k])));
 						m_message_ivy.append(";");
 					}
-					ivyqt->send(m_message_ivy); //format "EEG_Data channel1;channel2;channel3;...."
+					ivyqt->send(m_message_ivy.toUtf8()); //format "EEG_Data channel1;channel2;channel3;...."
 				}
 				dataOutlet.push_chunk(ppfChunkBuffer, dNow);
 				ppfChunkBuffer.clear();
@@ -821,5 +817,3 @@ MainWindow::~MainWindow()
 {
 	delete ui;
 }
-
-
