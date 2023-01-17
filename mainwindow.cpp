@@ -88,6 +88,7 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 					//starting ivy on LAN
 					setWindowTitle("Launching Ivy Server");
 					ivyqt->start(broadcast_ip_str, 2010);
+					std::cout << ivyqt->getPeers().length();
 					setWindowTitle(broadcast_ip_str);
 					break;
 				}
@@ -96,7 +97,9 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 		}
 	}
     free(ifaddrs);
-	ivyqt->bindMessage("EEG_Start",[=](Peer*, QStringList){ivyqt->send("Starting EEG...");});
+	std::cout << "binding messages";
+	std::cout << ivyqt->getPeers().length();
+	ivyqt->bindMessage("EEG_Start",[=](Peer*, QStringList){ivyqt->send("Starting EEG...");std::cout << ivyqt->getPeers().length();});
 	ivyqt->send("salut");
 	LoadConfig(cfgfilepath);
 }
