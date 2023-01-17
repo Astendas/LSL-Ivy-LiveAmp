@@ -63,6 +63,7 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 	ULONG RetVal = GetAdaptersAddresses(AF_UNSPEC,
 		GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_DNS_SERVER, NULL, ifaddrs,
 		&outBufLen);
+
 	if (RetVal == NO_ERROR) {
 		for (PIP_ADAPTER_ADDRESSES addr = ifaddrs; addr != 0; addr = addr->Next) {
 			// Interface isn't up or doesn't support multicast? Skip it.
@@ -87,20 +88,18 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 					inet_ntop(AF_INET, &broadcast_ip, broadcast_ip_str, 16);		
 					//starting ivy on LAN
 					setWindowTitle("Launching Ivy Server");
+					std::cout << "Launching Ivy Server";
 					ivyqt->start(broadcast_ip_str, 2010);
 					std::cout << ivyqt->getPeers().length();
 					setWindowTitle(broadcast_ip_str);
-					break;
+					goto ivy_initialized; //to break out of 2 loops. no it isn't bad practice in this precise case
 				}
 				
 			}
 		}
 	}
+	ivy_initialized:
     free(ifaddrs);
-	std::cout << "binding messages";
-	std::cout << ivyqt->getPeers().length();
-	ivyqt->bindMessage("EEG_Start",[=](Peer*, QStringList){ivyqt->send("Starting EEG...");std::cout << ivyqt->getPeers().length();});
-	ivyqt->send("salut");
 	LoadConfig(cfgfilepath);
 }
 
