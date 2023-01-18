@@ -42,9 +42,8 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 
 	m_bOverrideAutoUpdate = false;
 	ui->setupUi(this);
-
 	QObject::connect(ui->actionQuit, SIGNAL(triggered()), this, SLOT(close()));
-	QObject::connect(ui->linkButton, SIGNAL(clicked()), this, SLOT(Link()));
+	QObject::connect(ui->linkButton, SIGNAL(clicked()), this,SLOT(Link()));
 	QObject::connect(ui->actionLoad_Configuration, SIGNAL(triggered()), this, SLOT(LoadConfigDialog()));
 	QObject::connect(ui->actionSave_Configuration, SIGNAL(triggered()), this, SLOT(SaveConfigDialog()));
 	QObject::connect(ui->actionVersions, SIGNAL(triggered()), this, SLOT(VersionsDialog()));
@@ -54,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 	QObject::connect(ui->auxChannelCount, SIGNAL(valueChanged(int)), this, SLOT(UpdateChannelLabelsAux(int)));
 	QObject::connect(ui->rbSync, SIGNAL(clicked(bool)), this, SLOT(RadioButtonBehavior(bool)));
 	QObject::connect(ui->rbMirror, SIGNAL(clicked(bool)), this, SLOT(RadioButtonBehavior(bool)));
+	QObject::connect(this,SIGNAL(send(QString)),this,SLOT(sendMsg(QString)),Qt::QueuedConnection);
 	QString cfgfilepath = FindConfigFile(config_file);
 
 	//ivy config
@@ -88,9 +88,7 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 					inet_ntop(AF_INET, &broadcast_ip, broadcast_ip_str, 16);		
 					//starting ivy on LAN
 					setWindowTitle("Launching Ivy Server");
-					std::cout << "Launching Ivy Server";
 					ivyqt->start(broadcast_ip_str, 2010);
-					std::cout << ivyqt->getPeers().length();
 					setWindowTitle(broadcast_ip_str);
 					goto ivy_initialized; //to break out of 2 loops. no it isn't bad practice in this precise case
 				}
@@ -101,6 +99,9 @@ MainWindow::MainWindow(QWidget *parent, const char* config_file): QMainWindow(pa
 	ivy_initialized:
     free(ifaddrs);
 	LoadConfig(cfgfilepath);
+}
+void MainWindow::sendMsg(QString str){
+	ivyqt->send(str);
 }
 
 void MainWindow::UpdateChannelLabels(void) 
@@ -308,6 +309,7 @@ void MainWindow::WaitMessage()
 
 void MainWindow::RefreshDevices()
 {
+	emit send("Refreshing Devices\x03");
 	ui->deviceCb->blockSignals(true);
 	QVector<QString> deviceNames;
 	std::vector<std::pair<std::string, int>> ampData;
@@ -655,19 +657,15 @@ void MainWindow::ReadThread(t_AmpConfiguration ampConfiguration)
 		int nSampleCount;
 
 		//initial ivy message to get EEG channel count & sfreq
-		
 		ivyqt->bindMessage("EEG_Init_Request",[=](Peer*, QStringList){
 		QString init_message_ivy="EEG_Init ";
 		init_message_ivy.append(QString::number(nChannelLabelCount));
 		init_message_ivy.append(";");
 		init_message_ivy.append(QString::number((int)ampConfiguration.m_dSamplingRate));
-        ivyqt->send(init_message_ivy.toUtf8());
-		setWindowTitle(init_message_ivy);});
-		
-
+		init_message_ivy.append("\x03");
+        ivyqt->send(init_message_ivy.toUtf8());});
 
 		while (!m_bStop) {
-			std::cout<<ivyqt->getPeers().length();
 			nSamplesRead = m_pLiveAmp->pullAmpData(pBuffer, nBufferSize);
 			if (nSamplesRead <= 0){
 				// CPU saver, this is ok even at higher sampling rates
@@ -722,14 +720,20 @@ void MainWindow::ReadThread(t_AmpConfiguration ampConfiguration)
 					ppfChunkBuffer.push_back(pfSampleBuffer);
 				}
 				//Ivy message sending
-				for (i=0;i<ampConfiguration.m_nChunkSize;i++){
+				for (i=0;i<ppfChunkBuffer.size();i++){
 					QString m_message_ivy="EEG_Data ";
+					m_message_ivy.append(QString::number(dNow,'g',8));
+					m_message_ivy.append(" ");
 					for(k=0;k<nChannelLabelCount;k++){
-						m_message_ivy.append(QString::number(((float)ppfChunkBuffer[i][k])));
+						m_message_ivy.append(QString::number(((float)ppfChunkBuffer[i][k]),'g',6));
 						m_message_ivy.append(";");
 					}
-					ivyqt->send(m_message_ivy.toUtf8()); //format "EEG_Data channel1;channel2;channel3;...."
+					//ivyqt->send(m_message_ivy.toUtf8()); //format "EEG_Data channel1;channel2;channel3;...."
+					m_message_ivy.append("\x03"); //etx-terminated message
+					std::cout << ivyqt->getPeers().length();
+					emit send(m_message_ivy.toUtf8());
 				}
+
 				dataOutlet.push_chunk(ppfChunkBuffer, dNow);
 				ppfChunkBuffer.clear();
 

@@ -74,14 +74,17 @@ private slots:
     void LoadConfigDialog();
     void SaveConfigDialog();
 	void VersionsDialog();
-	void RefreshDevices();
 	void Link();
+	void RefreshDevices();
     void closeEvent(QCloseEvent *ev);
 	void UpdateChannelLabelsWithEeg(int);
 	void UpdateChannelLabelsAux(int);
 	void ChooseDevice(int which);
 	void RadioButtonBehavior(bool b);
 	void HandleListenerException(std::exception e);
+	void sendMsg(QString str);
+signals:
+	void send(QString str);
 
 private:
 	t_AppVersion m_AppVersion;
