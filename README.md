@@ -111,6 +111,11 @@ The LSL channel meta-data corresponds to the conventions of the XDF file format.
 Python users may automatically insert channel labels from a .bvef file into an LSL config file. To do so, please use the free utility [BVEF2lslconfig](https://github.com/brain-products/BVEF2lslconfig). You can find many electrode position files with channel labels for common cap configurations on the Brain Products website [here](https://www.brainproducts.com/downloads.php?kid=44). 
 
 ## Ivy Message
+
+Ivy: https://github.com/truillet/ivy    IvyQt: https://gitlab.com/ivybus/IvyQt
+
+Ivy is a network middleware that works fine with real-time application. You can find all relevant information on the github link right above.
+
 Ivy messages are automatically sent on the same network as LSL.
 You can request to know sampling frequency and number of active electrodes with "EEG_Init_Request" which will send back "EEG_Init (number of active channel);(sampling frequency)" as 2 args, subscribe to "EEG_Init (.*);(.*)" to recieve them.
 
