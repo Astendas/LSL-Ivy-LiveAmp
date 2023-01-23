@@ -114,7 +114,7 @@ Python users may automatically insert channel labels from a .bvef file into an L
 
 Ivy: https://github.com/truillet/ivy    IvyQt: https://gitlab.com/ivybus/IvyQt
 
-Ivy is a network middleware that works fine with real-time application. You can find all relevant information on the github link right above.
+Ivy is a network middleware that works fine with real-time application. You can find all relevant information on the github link right above. The Ivy connection is done at the start of the application and start sending messages once the Link button is clicked
 
 Ivy messages are automatically sent on the same network as LSL.
 You can request to know sampling frequency and number of active electrodes with "EEG_Init_Request" which will send back "EEG_Init (number of active channel);(sampling frequency)" as 2 args, subscribe to "EEG_Init (.\*);(.\*)" to recieve them.
